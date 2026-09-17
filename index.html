@@ -203,6 +203,12 @@ label{font-size:.78rem; color:var(--ink-muted); font-weight:600; display:block; 
 .tab[aria-selected="true"]{color:var(--ink); border-color:var(--accent);}
 .tabpanel[hidden]{display:none;}
 
+.multi-idea-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:12px;}
+.multi-idea-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+.multi-idea-head .mono{font-size:.72rem; color:var(--ink-muted); font-weight:700;}
+.multi-idea-card textarea{min-height:64px;}
+.multi-idea-card[data-discarded="1"]{opacity:.4;}
+
 .cat-row{display:flex; gap:8px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px;}
 .cat-row .swatch{width:16px;height:16px;border-radius:50%;flex:none;border:none;padding:0;}
 .cat-row .grow{flex:1; display:flex; flex-direction:column; gap:5px;}
@@ -308,6 +314,19 @@ input[type="range"]{width:100%;}
   </div>
 </div>
 
+<!-- multi idea review overlay -->
+<div class="overlay" id="multiReviewOverlay" hidden>
+  <div class="sheet">
+    <div class="sheet-head"><h3>Se detectaron varias ideas</h3><button class="icon-btn" id="closeMultiReview" aria-label="Cerrar">✕</button></div>
+    <p class="small-note">Revisá cada una, corregí el texto o la categoría si hace falta, y guardalas. Se sacaron las muletillas automáticamente.</p>
+    <div id="multiReviewList"></div>
+    <div class="review-actions">
+      <button class="btn ghost" id="discardAllMulti">Descartar todas</button>
+      <button class="btn primary" id="saveAllMulti">Guardar todas</button>
+    </div>
+  </div>
+</div>
+
 <!-- settings overlay -->
 <div class="overlay" id="settingsOverlay" hidden>
   <div class="sheet">
@@ -330,6 +349,12 @@ input[type="range"]{width:100%;}
       <label for="pauseSeconds">Tiempo de silencio antes de cerrar la grabación sola: <span id="pauseSecondsVal" class="mono"></span></label>
       <input type="range" id="pauseSeconds" min="10" max="60" step="5">
       <p class="small-note">Mientras las pausas para pensar sean más cortas que esto, la grabación sigue escuchando sin cortarse. En cualquier momento se puede tocar "Ya terminé" para cerrarla antes, sin esperar.</p>
+      <label for="ideaGapSeconds">Pausa que separa una idea de la siguiente (en la misma grabación): <span id="ideaGapSecondsVal" class="mono"></span></label>
+      <input type="range" id="ideaGapSeconds" min="2" max="10" step="1">
+      <p class="small-note">Si se queda callada más que esto pero sigue hablando después, la app entiende que empezó una idea nueva y la separa de la anterior, sin cortar la grabación.</p>
+      <label for="fillerWords">Muletillas a limpiar del texto (separadas por coma)</label>
+      <textarea id="fillerWords"></textarea>
+      <p class="small-note">Estas palabras se borran automáticamente de la transcripción antes de guardarla, para dejar solo la idea. Se pueden agregar o sacar las que hagan falta.</p>
       <p class="small-note">La transcripción por voz usa el reconocimiento de voz del navegador (funciona mejor en Chrome / Android). En iPhone no hay transcripción automática: se graba el audio y se escribe a mano escuchando la grabación.</p>
     </div>
     <div class="tabpanel" id="panel-pri" hidden>
@@ -390,6 +415,8 @@ input[type="range"]{width:100%;}
     vagueWords: ["no sé","no se","tal vez","quizás","quizas","capaz","algo así","algo asi","no tengo claro","más o menos","mas o menos","viste","onda","como que","no sé bien"],
     thresholds: {alta: 8, baja: 1},
     pauseSeconds: 30,
+    ideaGapSeconds: 4,
+    fillerWords: ["eh","ehh","este","esteee","o sea","digamos","viste","tipo","bueno","mmm","aha","ajá","aja","ponele","buee","digo yo"],
     tipSeen: false
   };
 
@@ -437,26 +464,31 @@ input[type="range"]{width:100%;}
     return state.categories[state.categories.length-1];
   }
 
-  function classify(text){
+  function classify(text, forcedCategoryId){
     var norm = normalize(text);
     var words = norm.split(/\s+/).filter(Boolean);
-    var best = null, bestScore = 0;
-    state.categories.forEach(function(cat){
-      if(!cat.keywords || !cat.keywords.length) return;
-      var hits = 0;
-      cat.keywords.forEach(function(k){
-        var nk = normalize(k);
-        if(!nk) return;
-        if(nk.indexOf(" ") > -1){
-          if(norm.indexOf(nk) > -1) hits++;
-        } else {
-          words.forEach(function(w){ if(w===nk) hits++; });
-        }
+    var category;
+    if(forcedCategoryId && catById(forcedCategoryId)){
+      category = catById(forcedCategoryId);
+    } else {
+      var best = null, bestScore = 0;
+      state.categories.forEach(function(cat){
+        if(!cat.keywords || !cat.keywords.length) return;
+        var hits = 0;
+        cat.keywords.forEach(function(k){
+          var nk = normalize(k);
+          if(!nk) return;
+          if(nk.indexOf(" ") > -1){
+            if(norm.indexOf(nk) > -1) hits++;
+          } else {
+            words.forEach(function(w){ if(w===nk) hits++; });
+          }
+        });
+        var score = hits * cat.weight;
+        if(hits>0 && score>bestScore){ best = cat; bestScore = score; }
       });
-      var score = hits * cat.weight;
-      if(hits>0 && score>bestScore){ best = cat; bestScore = score; }
-    });
-    var category = best || state.categories.find(function(c){return c.isDefault;}) || state.categories[state.categories.length-1];
+      category = best || state.categories.find(function(c){return c.isDefault;}) || state.categories[state.categories.length-1];
+    }
 
     var boostHits = 0;
     state.boostWords.forEach(function(b){ var nb=normalize(b); if(nb && norm.indexOf(nb)>-1) boostHits++; });
@@ -474,6 +506,39 @@ input[type="range"]{width:100%;}
     return {categoryId: category.id, score: score, bucket: bucket, isVague: vagueHits>0 && bucket!=="alta"};
   }
 
+  /* ---------- transcript cleanup (muletillas) ---------- */
+  function buildFillerRegex(){
+    var fillers = (state.fillerWords||[]).map(function(s){ return (s||"").trim(); }).filter(Boolean);
+    if(!fillers.length) return null;
+    fillers.sort(function(a,b){ return b.length - a.length; });
+    var esc = fillers.map(function(f){
+      return f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    });
+    return new RegExp("(^|[\\s,.;:!?¿¡])(" + esc.join("|") + ")(?=[\\s,.;:!?¿¡]|$)", "gi");
+  }
+
+  function cleanTranscript(raw){
+    var text = (raw||"").trim();
+    if(!text) return text;
+    var re = buildFillerRegex();
+    if(re){
+      var prev, passes = 0;
+      do{
+        prev = text;
+        text = text.replace(re, "$1");
+        passes++;
+      } while(text !== prev && passes < 4);
+    }
+    text = text.replace(/[ \t]+/g, " ")
+               .replace(/\s+([,.;:!?])/g, "$1")
+               .replace(/([,.;:!?])(\s*\1)+/g, "$1")
+               .replace(/^[,.;:\s]+/, "")
+               .replace(/[,;:]\s*$/, "")
+               .trim();
+    if(text) text = text.charAt(0).toUpperCase() + text.slice(1);
+    return text;
+  }
+
   /* ---------- recording ---------- */
   var recBtn = document.getElementById("recBtn");
   var dockHint = document.getElementById("dockHint");
@@ -488,9 +553,12 @@ input[type="range"]{width:100%;}
   var lastSpeechAt = 0;
   var idleCheckInterval = null;
   var mediaRecorder = null, audioChunks = [], audioBlobUrl = null, mediaStream = null;
+  var segments = [];
+  var segmentBroken = false;
 
   function supportsSpeech(){ return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
   function pauseLimitMs(){ return (state.pauseSeconds || 30) * 1000; }
+  function ideaGapMs(){ return (state.ideaGapSeconds || 4) * 1000; }
 
   recBtn.addEventListener("click", function(){
     if(listening || usingManual){ stopActive(); return; }
@@ -520,6 +588,8 @@ input[type="range"]{width:100%;}
   function startListening(){
     listening = true;
     committedText = ""; currentFinal = ""; currentInterim = "";
+    segments = [];
+    segmentBroken = false;
     lastSpeechAt = Date.now();
     liveCard.hidden = false;
     liveText.textContent = "…";
@@ -547,7 +617,7 @@ input[type="range"]{width:100%;}
         if(e.results[idx].isFinal) f += t; else i += t;
       }
       currentFinal = f; currentInterim = i;
-      if((f+i).trim()) lastSpeechAt = Date.now();
+      if((f+i).trim()){ lastSpeechAt = Date.now(); segmentBroken = false; }
       updateLiveDisplay();
     };
     rec.onerror = function(e){
@@ -591,6 +661,12 @@ input[type="range"]{width:100%;}
     var silentFor = Date.now() - lastSpeechAt;
     if(silentFor >= pauseLimitMs()){
       finishListening();
+    } else if(silentFor >= ideaGapMs() && !segmentBroken && committedText.trim()){
+      segments.push(committedText.trim());
+      committedText = "";
+      segmentBroken = true;
+      updateLiveDisplay();
+      dockHint.textContent = "Nueva idea… seguí hablando o tocá \"Ya terminé\"";
     } else if(silentFor > 2000){
       dockHint.textContent = "Pensando… (" + Math.floor(silentFor/1000) + "s de silencio)";
     } else {
@@ -604,9 +680,18 @@ input[type="range"]{width:100%;}
     if(currentRecognition){ try{ currentRecognition.stop(); }catch(e){} }
     setRecordingUI(false);
     liveCard.hidden = true;
-    var text = (committedText + currentFinal).trim();
-    if(!text) return;
-    openReview(text);
+    var lastBit = (committedText + currentFinal).trim();
+    if(lastBit) segments.push(lastBit);
+    var raw = segments.slice();
+    segments = []; committedText = ""; currentFinal = ""; currentInterim = "";
+    if(!raw.length) return;
+    var cleaned = raw.map(cleanTranscript).filter(function(t){ return t && t.trim().length > 1; });
+    if(!cleaned.length) return;
+    if(cleaned.length === 1){
+      openReview(cleaned[0]);
+    } else {
+      openMultiReview(cleaned);
+    }
   }
 
   function startManualRecording(){
@@ -754,6 +839,104 @@ input[type="range"]{width:100%;}
     showToast("Guardado ✓");
   });
 
+  /* ---------- multi idea review ---------- */
+  var multiReviewOverlay = document.getElementById("multiReviewOverlay");
+  var multiReviewList = document.getElementById("multiReviewList");
+
+  function openMultiReview(texts){
+    multiReviewList.innerHTML = "";
+    texts.forEach(function(text, idx){
+      var result = classify(text);
+      var card = document.createElement("div");
+      card.className = "multi-idea-card";
+      card.dataset.discarded = "0";
+
+      var head = document.createElement("div");
+      head.className = "multi-idea-head";
+      var label = document.createElement("span");
+      label.className = "mono";
+      label.textContent = "IDEA " + (idx+1);
+      var removeBtn = document.createElement("button");
+      removeBtn.className = "link-btn danger";
+      removeBtn.type = "button";
+      removeBtn.textContent = "✕";
+      head.appendChild(label); head.appendChild(removeBtn);
+
+      var ta = document.createElement("textarea");
+      ta.value = text;
+
+      var catSelect = document.createElement("select");
+      fillCategorySelect(catSelect, result.categoryId);
+
+      var badgeRow = document.createElement("div");
+      badgeRow.className = "field-row";
+      badgeRow.style.marginTop = "8px";
+      var badgeNote = document.createElement("span");
+      badgeNote.className = "small-note";
+      badgeNote.textContent = "Prioridad detectada:";
+      var badge = document.createElement("span");
+      badge.className = "badge";
+      badgeRow.appendChild(badgeNote); badgeRow.appendChild(badge);
+
+      function refreshBadge(forcedCat){
+        var r = classify(ta.value, forcedCat);
+        badge.textContent = bucketLabel(r.bucket);
+        badge.style.background = bucketColorVar(r.bucket);
+        badge.dataset.bucket = r.bucket;
+        badge.dataset.score = r.score;
+        badge.dataset.vague = r.isVague ? "1":"0";
+        if(!forcedCat) catSelect.value = r.categoryId;
+      }
+      refreshBadge(null);
+
+      ta.addEventListener("input", function(){ refreshBadge(catSelect.dataset.manual==="1" ? catSelect.value : null); });
+      catSelect.addEventListener("change", function(){ catSelect.dataset.manual = "1"; refreshBadge(catSelect.value); });
+
+      removeBtn.addEventListener("click", function(){
+        var willDiscard = card.dataset.discarded !== "1";
+        card.dataset.discarded = willDiscard ? "1" : "0";
+        removeBtn.textContent = willDiscard ? "↺" : "✕";
+        ta.disabled = willDiscard;
+        catSelect.disabled = willDiscard;
+      });
+
+      card.appendChild(head);
+      card.appendChild(ta);
+      card.appendChild(catSelect);
+      card.appendChild(badgeRow);
+      card._ta = ta; card._catSelect = catSelect; card._badge = badge;
+      multiReviewList.appendChild(card);
+    });
+    multiReviewOverlay.hidden = false;
+  }
+
+  function closeMultiReview(){ multiReviewOverlay.hidden = true; }
+  document.getElementById("closeMultiReview").addEventListener("click", closeMultiReview);
+  document.getElementById("discardAllMulti").addEventListener("click", closeMultiReview);
+
+  document.getElementById("saveAllMulti").addEventListener("click", function(){
+    var cards = multiReviewList.querySelectorAll(".multi-idea-card");
+    var saved = 0;
+    cards.forEach(function(card){
+      if(card.dataset.discarded === "1") return;
+      var text = card._ta.value.trim();
+      if(!text) return;
+      var badge = card._badge;
+      state.ideas.unshift({
+        id: uid(), text: text, categoryId: card._catSelect.value,
+        bucket: badge.dataset.bucket || "media", score: Number(badge.dataset.score || 0),
+        ts: Date.now(), isExample:false, isVague: badge.dataset.vague==="1"
+      });
+      saved++;
+    });
+    if(saved){
+      saveState();
+      renderBoard();
+    }
+    closeMultiReview();
+    if(saved) showToast("Guardadas " + saved + " ideas ✓");
+  });
+
   /* ---------- board / list ---------- */
   var activeFilter = "todas";
 
@@ -892,10 +1075,23 @@ input[type="range"]{width:100%;}
     var slider = document.getElementById("pauseSeconds");
     slider.value = state.pauseSeconds;
     document.getElementById("pauseSecondsVal").textContent = state.pauseSeconds + "s";
+    var gapSlider = document.getElementById("ideaGapSeconds");
+    gapSlider.value = state.ideaGapSeconds;
+    document.getElementById("ideaGapSecondsVal").textContent = state.ideaGapSeconds + "s";
+    document.getElementById("fillerWords").value = state.fillerWords.join(", ");
   }
   document.getElementById("pauseSeconds").addEventListener("input", function(e){
     state.pauseSeconds = Number(e.target.value);
     document.getElementById("pauseSecondsVal").textContent = state.pauseSeconds + "s";
+    saveState();
+  });
+  document.getElementById("ideaGapSeconds").addEventListener("input", function(e){
+    state.ideaGapSeconds = Number(e.target.value);
+    document.getElementById("ideaGapSecondsVal").textContent = state.ideaGapSeconds + "s";
+    saveState();
+  });
+  document.getElementById("fillerWords").addEventListener("change", function(e){
+    state.fillerWords = e.target.value.split(",").map(function(s){return s.trim();}).filter(Boolean);
     saveState();
   });
 
