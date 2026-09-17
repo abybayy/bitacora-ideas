@@ -113,6 +113,7 @@ button{font-family:inherit;}
 @keyframes bar{0%,100%{transform:scaleY(.4);}50%{transform:scaleY(1);}}
 @media (prefers-reduced-motion: reduce){ .wave span{animation:none;} }
 .audio-player{width:100%;margin-bottom:10px;}
+.finish-btn{width:100%; margin-top:12px;}
 
 /* tip banner */
 .tip{
@@ -252,6 +253,7 @@ input[type="range"]{width:100%;}
     <div class="live-card" id="liveCard" hidden>
       <p id="liveText" class="mono"></p>
       <div class="wave" id="waveEl"><span></span><span></span><span></span><span></span><span></span></div>
+      <button class="btn primary finish-btn" id="finishBtn" type="button">✓ Ya terminé</button>
     </div>
   </section>
 
@@ -312,6 +314,7 @@ input[type="range"]{width:100%;}
     <div class="sheet-head"><h3>Ajustes</h3><button class="icon-btn" id="closeSettings" aria-label="Cerrar">✕</button></div>
     <div class="tabs">
       <button class="tab" data-tab="cats" aria-selected="true">Categorías</button>
+      <button class="tab" data-tab="voz" aria-selected="false">Voz</button>
       <button class="tab" data-tab="pri" aria-selected="false">Prioridad</button>
       <button class="tab" data-tab="data" aria-selected="false">Datos</button>
     </div>
@@ -322,6 +325,12 @@ input[type="range"]{width:100%;}
         <input type="text" id="newCatName" placeholder="Nueva categoría (ej: Regalos)">
         <button class="btn" id="addCatBtn" style="flex:none;">Agregar</button>
       </div>
+    </div>
+    <div class="tabpanel" id="panel-voz" hidden>
+      <label for="pauseSeconds">Tiempo de silencio antes de cerrar la grabación sola: <span id="pauseSecondsVal" class="mono"></span></label>
+      <input type="range" id="pauseSeconds" min="10" max="60" step="5">
+      <p class="small-note">Mientras las pausas para pensar sean más cortas que esto, la grabación sigue escuchando sin cortarse. En cualquier momento se puede tocar "Ya terminé" para cerrarla antes, sin esperar.</p>
+      <p class="small-note">La transcripción por voz usa el reconocimiento de voz del navegador (funciona mejor en Chrome / Android). En iPhone no hay transcripción automática: se graba el audio y se escribe a mano escuchando la grabación.</p>
     </div>
     <div class="tabpanel" id="panel-pri" hidden>
       <label for="boostWords">Palabras que suben la prioridad (separadas por coma)</label>
@@ -335,7 +344,7 @@ input[type="range"]{width:100%;}
       <p class="small-note">Lo que queda en el medio se muestra en "A pensar".</p>
     </div>
     <div class="tabpanel" id="panel-data" hidden>
-      <p class="small-note">La transcripción por voz usa el reconocimiento de voz del navegador (funciona mejor en Chrome / Android). Todo se guarda solo en este teléfono, en este navegador.</p>
+      <p class="small-note">Todo se guarda solo en este teléfono, en este navegador.</p>
       <button class="btn primary" id="exportBtn" style="width:100%;margin-top:10px;">Exportar para Excel / Sheets</button>
       <div class="danger-zone">
         <button class="link-btn danger" id="clearAllBtn">Borrar todas las ideas</button>
@@ -380,6 +389,7 @@ input[type="range"]{width:100%;}
     boostWords: ["tengo que","necesito","urgente","hoy","mañana","ya","ahora","quiero hacer","voy a","deadline","importante"],
     vagueWords: ["no sé","no se","tal vez","quizás","quizas","capaz","algo así","algo asi","no tengo claro","más o menos","mas o menos","viste","onda","como que","no sé bien"],
     thresholds: {alta: 8, baja: 1},
+    pauseSeconds: 30,
     tipSeen: false
   };
 
@@ -469,78 +479,134 @@ input[type="range"]{width:100%;}
   var dockHint = document.getElementById("dockHint");
   var liveCard = document.getElementById("liveCard");
   var liveText = document.getElementById("liveText");
+  var finishBtn = document.getElementById("finishBtn");
 
-  var recognition = null, recognizing = false, manualStop = false, finalTranscript = "", silenceTimer = null;
-  var mediaRecorder = null, audioChunks = [], audioBlobUrl = null, mediaStream = null;
+  var listening = false;
   var usingManual = false;
+  var currentRecognition = null;
+  var committedText = "", currentFinal = "", currentInterim = "";
+  var lastSpeechAt = 0;
+  var idleCheckInterval = null;
+  var mediaRecorder = null, audioChunks = [], audioBlobUrl = null, mediaStream = null;
 
   function supportsSpeech(){ return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+  function pauseLimitMs(){ return (state.pauseSeconds || 30) * 1000; }
 
   recBtn.addEventListener("click", function(){
-    if(recognizing || usingManual) { stopRecording(); return; }
+    if(listening || usingManual){ stopActive(); return; }
     startRecording();
   });
+  finishBtn.addEventListener("click", function(){ stopActive(); });
 
   function setRecordingUI(on){
     recBtn.classList.toggle("recording", !!on);
-    dockHint.textContent = on ? "Grabando… tocá de nuevo para terminar" : "Tocá para grabar una idea";
+    if(!on) dockHint.textContent = "Tocá para grabar una idea";
   }
 
   function startRecording(){
-    finalTranscript = "";
-    if(supportsSpeech()){
-      startSpeechRecording();
-    } else {
-      startManualRecording();
+    if(supportsSpeech()){ startListening(); } else { startManualRecording(); }
+  }
+
+  function stopActive(){
+    if(usingManual){
+      usingManual = false;
+      setRecordingUI(false);
+      if(mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+    } else if(listening){
+      finishListening();
     }
   }
 
-  function startSpeechRecording(){
-    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    try{
-      recognition = new SR();
-    }catch(e){ startManualRecording(); return; }
-    recognition.lang = "es-UY";
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    manualStop = false;
+  function startListening(){
+    listening = true;
+    committedText = ""; currentFinal = ""; currentInterim = "";
+    lastSpeechAt = Date.now();
+    liveCard.hidden = false;
+    liveText.textContent = "…";
+    setRecordingUI(true);
+    dockHint.textContent = "Grabando… tocá \"Ya terminé\" cuando quieras";
+    launchRecognitionSession();
+    clearInterval(idleCheckInterval);
+    idleCheckInterval = setInterval(checkIdle, 500);
+  }
 
-    recognition.onstart = function(){
-      recognizing = true;
-      setRecordingUI(true);
-      liveCard.hidden = false;
-      liveText.textContent = "…";
-    };
-    recognition.onresult = function(e){
-      var interim = "";
-      for(var i=e.resultIndex;i<e.results.length;i++){
-        var t = e.results[i][0].transcript;
-        if(e.results[i].isFinal) finalTranscript += t + " ";
-        else interim += t;
+  function launchRecognitionSession(){
+    if(!listening) return;
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var rec;
+    try{ rec = new SR(); }catch(e){ finishListening(); return; }
+    rec.lang = "es-UY";
+    rec.continuous = false;
+    rec.interimResults = true;
+    currentFinal = ""; currentInterim = "";
+
+    rec.onresult = function(e){
+      var f = "", i = "";
+      for(var idx=0; idx<e.results.length; idx++){
+        var t = e.results[idx][0].transcript;
+        if(e.results[idx].isFinal) f += t; else i += t;
       }
-      liveText.textContent = (finalTranscript + interim).trim() || "…";
-      resetSilenceTimer();
+      currentFinal = f; currentInterim = i;
+      if((f+i).trim()) lastSpeechAt = Date.now();
+      updateLiveDisplay();
     };
-    recognition.onerror = function(e){
+    rec.onerror = function(e){
       if(e.error === "not-allowed" || e.error === "service-not-allowed"){
-        recognizing = false;
+        listening = false;
+        clearInterval(idleCheckInterval);
         setRecordingUI(false);
         liveCard.hidden = true;
         showToast("No se pudo acceder al micrófono.");
       }
     };
-    recognition.onend = function(){
-      if(recognizing && !manualStop){
-        try{ recognition.start(); }catch(err){ /* ignore double-start */ }
+    rec.onend = function(){
+      var chunk = (currentFinal || "").trim();
+      if(chunk) commitChunk(chunk);
+      currentFinal = ""; currentInterim = "";
+      updateLiveDisplay();
+      if(listening){
+        setTimeout(function(){ if(listening) launchRecognitionSession(); }, 200);
       }
     };
-    try{ recognition.start(); }catch(err){ /* already running */ }
-    resetSilenceTimer();
+    currentRecognition = rec;
+    try{ rec.start(); }
+    catch(e){ setTimeout(function(){ if(listening) launchRecognitionSession(); }, 300); }
   }
 
-  function resetSilenceTimer(){
-    clearTimeout(silenceTimer);
-    silenceTimer = setTimeout(function(){ if(recognizing) stopRecording(); }, 3200);
+  function commitChunk(chunk){
+    var normalizedChunk = chunk.trim();
+    if(!normalizedChunk) return;
+    var tail = committedText.trim();
+    if(tail.slice(-normalizedChunk.length) === normalizedChunk) return;
+    committedText = (committedText + " " + normalizedChunk).trim() + " ";
+  }
+
+  function updateLiveDisplay(){
+    var text = (committedText + currentFinal + currentInterim).trim();
+    liveText.textContent = text || "…";
+  }
+
+  function checkIdle(){
+    if(!listening) return;
+    var silentFor = Date.now() - lastSpeechAt;
+    if(silentFor >= pauseLimitMs()){
+      finishListening();
+    } else if(silentFor > 2000){
+      dockHint.textContent = "Pensando… (" + Math.floor(silentFor/1000) + "s de silencio)";
+    } else {
+      dockHint.textContent = "Grabando… tocá \"Ya terminé\" cuando quieras";
+    }
+  }
+
+  function finishListening(){
+    listening = false;
+    clearInterval(idleCheckInterval);
+    if(currentRecognition){ try{ currentRecognition.stop(); }catch(e){} }
+    setRecordingUI(false);
+    liveCard.hidden = true;
+    var text = (committedText + currentFinal).trim();
+    if(!text) return;
+    openReview(text);
   }
 
   function startManualRecording(){
@@ -573,24 +639,6 @@ input[type="range"]{width:100%;}
     }).catch(function(){
       showToast("No se pudo acceder al micrófono.");
     });
-  }
-
-  function stopRecording(){
-    if(usingManual){
-      usingManual = false;
-      setRecordingUI(false);
-      if(mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
-      return;
-    }
-    manualStop = true;
-    recognizing = false;
-    clearTimeout(silenceTimer);
-    setRecordingUI(false);
-    liveCard.hidden = true;
-    if(recognition){ try{ recognition.stop(); }catch(e){} }
-    var text = finalTranscript.trim();
-    if(!text){ return; }
-    openReview(text);
   }
 
   /* ---------- review sheet ---------- */
@@ -824,6 +872,7 @@ input[type="range"]{width:100%;}
   var settingsOverlay = document.getElementById("settingsOverlay");
   document.getElementById("btnSettings").addEventListener("click", function(){
     renderCategorySettings();
+    renderVoiceSettings();
     renderPrioritySettings();
     settingsOverlay.hidden = false;
   });
@@ -833,10 +882,21 @@ input[type="range"]{width:100%;}
     tab.addEventListener("click", function(){
       document.querySelectorAll(".tab").forEach(function(t){ t.setAttribute("aria-selected","false"); });
       tab.setAttribute("aria-selected","true");
-      ["cats","pri","data"].forEach(function(name){
+      ["cats","voz","pri","data"].forEach(function(name){
         document.getElementById("panel-"+name).hidden = (name !== tab.dataset.tab);
       });
     });
+  });
+
+  function renderVoiceSettings(){
+    var slider = document.getElementById("pauseSeconds");
+    slider.value = state.pauseSeconds;
+    document.getElementById("pauseSecondsVal").textContent = state.pauseSeconds + "s";
+  }
+  document.getElementById("pauseSeconds").addEventListener("input", function(e){
+    state.pauseSeconds = Number(e.target.value);
+    document.getElementById("pauseSecondsVal").textContent = state.pauseSeconds + "s";
+    saveState();
   });
 
   function renderCategorySettings(){
