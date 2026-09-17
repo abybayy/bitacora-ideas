@@ -113,7 +113,9 @@ button{font-family:inherit;}
 @keyframes bar{0%,100%{transform:scaleY(.4);}50%{transform:scaleY(1);}}
 @media (prefers-reduced-motion: reduce){ .wave span{animation:none;} }
 .audio-player{width:100%;margin-bottom:10px;}
-.finish-btn{width:100%; margin-top:12px;}
+.finish-row{display:flex; gap:8px; margin-top:12px;}
+.finish-row .btn{margin-top:0;}
+.finish-btn{flex:1;}
 
 /* tip banner */
 .tip{
@@ -259,7 +261,10 @@ input[type="range"]{width:100%;}
     <div class="live-card" id="liveCard" hidden>
       <p id="liveText" class="mono"></p>
       <div class="wave" id="waveEl"><span></span><span></span><span></span><span></span><span></span></div>
-      <button class="btn primary finish-btn" id="finishBtn" type="button">✓ Ya terminé</button>
+      <div class="finish-row">
+        <button class="btn ghost" id="nextIdeaBtn" type="button">↳ Otra idea</button>
+        <button class="btn primary finish-btn" id="finishBtn" type="button">✓ Ya terminé</button>
+      </div>
     </div>
   </section>
 
@@ -349,9 +354,9 @@ input[type="range"]{width:100%;}
       <label for="pauseSeconds">Tiempo de silencio antes de cerrar la grabación sola: <span id="pauseSecondsVal" class="mono"></span></label>
       <input type="range" id="pauseSeconds" min="10" max="60" step="5">
       <p class="small-note">Mientras las pausas para pensar sean más cortas que esto, la grabación sigue escuchando sin cortarse. En cualquier momento se puede tocar "Ya terminé" para cerrarla antes, sin esperar.</p>
-      <label for="ideaGapSeconds">Pausa que separa una idea de la siguiente (en la misma grabación): <span id="ideaGapSecondsVal" class="mono"></span></label>
-      <input type="range" id="ideaGapSeconds" min="2" max="10" step="1">
-      <p class="small-note">Si se queda callada más que esto pero sigue hablando después, la app entiende que empezó una idea nueva y la separa de la anterior, sin cortar la grabación.</p>
+      <label for="ideaMarkers">Frases que marcan que empezás una idea nueva (separadas por coma)</label>
+      <textarea id="ideaMarkers"></textarea>
+      <p class="small-note">Si al hablar decís alguna de estas frases, la app separa lo que sigue como una idea nueva, sin cortar la grabación. También se puede tocar el botón "Otra idea" en cualquier momento para separar a mano, sin depender de lo que digas. Las pausas para pensar, por sí solas, nunca separan ni cortan una idea — así no se pierde ni se parte lo que estás contando.</p>
       <label for="fillerWords">Muletillas a limpiar del texto (separadas por coma)</label>
       <textarea id="fillerWords"></textarea>
       <p class="small-note">Estas palabras se borran automáticamente de la transcripción antes de guardarla, para dejar solo la idea. Se pueden agregar o sacar las que hagan falta.</p>
@@ -415,7 +420,7 @@ input[type="range"]{width:100%;}
     vagueWords: ["no sé","no se","tal vez","quizás","quizas","capaz","algo así","algo asi","no tengo claro","más o menos","mas o menos","viste","onda","como que","no sé bien"],
     thresholds: {alta: 8, baja: 1},
     pauseSeconds: 30,
-    ideaGapSeconds: 4,
+    ideaMarkers: ["otra cosa","otra idea","cambiando de tema","aparte","ah me acordé","ah, me acorde","también quería decir","tambien queria decir","una cosa más","una cosa mas","por otro lado","algo más que se me ocurre","algo mas que se me ocurre","eso por un lado","y otra cosa"],
     fillerWords: ["eh","ehh","este","esteee","o sea","digamos","viste","tipo","bueno","mmm","aha","ajá","aja","ponele","buee","digo yo"],
     tipSeen: false
   };
@@ -554,17 +559,39 @@ input[type="range"]{width:100%;}
   var idleCheckInterval = null;
   var mediaRecorder = null, audioChunks = [], audioBlobUrl = null, mediaStream = null;
   var segments = [];
-  var segmentBroken = false;
+  var nextIdeaBtn = document.getElementById("nextIdeaBtn");
 
   function supportsSpeech(){ return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
   function pauseLimitMs(){ return (state.pauseSeconds || 30) * 1000; }
-  function ideaGapMs(){ return (state.ideaGapSeconds || 4) * 1000; }
+
+  function ideaMarkerHit(rawChunk){
+    var norm = normalize(rawChunk);
+    var markers = (state.ideaMarkers||[]).map(normalize).filter(Boolean);
+    for(var i=0;i<markers.length;i++){
+      var pos = norm.indexOf(markers[i]);
+      if(pos > -1 && pos < 25) return true;
+    }
+    return false;
+  }
+
+  function breakSegment(){
+    var pending = (committedText + currentFinal).trim();
+    if(pending){ segments.push(pending); }
+    committedText = ""; currentFinal = ""; currentInterim = "";
+    updateLiveDisplay();
+  }
 
   recBtn.addEventListener("click", function(){
     if(listening || usingManual){ stopActive(); return; }
     startRecording();
   });
   finishBtn.addEventListener("click", function(){ stopActive(); });
+  nextIdeaBtn.addEventListener("click", function(){
+    if(!listening) return;
+    if(!(committedText + currentFinal).trim()) return;
+    breakSegment();
+    dockHint.textContent = "Idea anotada ✓ — seguí con la siguiente";
+  });
 
   function setRecordingUI(on){
     recBtn.classList.toggle("recording", !!on);
@@ -589,7 +616,6 @@ input[type="range"]{width:100%;}
     listening = true;
     committedText = ""; currentFinal = ""; currentInterim = "";
     segments = [];
-    segmentBroken = false;
     lastSpeechAt = Date.now();
     liveCard.hidden = false;
     liveText.textContent = "…";
@@ -617,7 +643,7 @@ input[type="range"]{width:100%;}
         if(e.results[idx].isFinal) f += t; else i += t;
       }
       currentFinal = f; currentInterim = i;
-      if((f+i).trim()){ lastSpeechAt = Date.now(); segmentBroken = false; }
+      if((f+i).trim()){ lastSpeechAt = Date.now(); }
       updateLiveDisplay();
     };
     rec.onerror = function(e){
@@ -648,6 +674,10 @@ input[type="range"]{width:100%;}
     if(!normalizedChunk) return;
     var tail = committedText.trim();
     if(tail.slice(-normalizedChunk.length) === normalizedChunk) return;
+    if(committedText.trim() && ideaMarkerHit(normalizedChunk)){
+      segments.push(committedText.trim());
+      committedText = "";
+    }
     committedText = (committedText + " " + normalizedChunk).trim() + " ";
   }
 
@@ -661,12 +691,6 @@ input[type="range"]{width:100%;}
     var silentFor = Date.now() - lastSpeechAt;
     if(silentFor >= pauseLimitMs()){
       finishListening();
-    } else if(silentFor >= ideaGapMs() && !segmentBroken && committedText.trim()){
-      segments.push(committedText.trim());
-      committedText = "";
-      segmentBroken = true;
-      updateLiveDisplay();
-      dockHint.textContent = "Nueva idea… seguí hablando o tocá \"Ya terminé\"";
     } else if(silentFor > 2000){
       dockHint.textContent = "Pensando… (" + Math.floor(silentFor/1000) + "s de silencio)";
     } else {
@@ -1075,9 +1099,7 @@ input[type="range"]{width:100%;}
     var slider = document.getElementById("pauseSeconds");
     slider.value = state.pauseSeconds;
     document.getElementById("pauseSecondsVal").textContent = state.pauseSeconds + "s";
-    var gapSlider = document.getElementById("ideaGapSeconds");
-    gapSlider.value = state.ideaGapSeconds;
-    document.getElementById("ideaGapSecondsVal").textContent = state.ideaGapSeconds + "s";
+    document.getElementById("ideaMarkers").value = state.ideaMarkers.join(", ");
     document.getElementById("fillerWords").value = state.fillerWords.join(", ");
   }
   document.getElementById("pauseSeconds").addEventListener("input", function(e){
@@ -1085,9 +1107,8 @@ input[type="range"]{width:100%;}
     document.getElementById("pauseSecondsVal").textContent = state.pauseSeconds + "s";
     saveState();
   });
-  document.getElementById("ideaGapSeconds").addEventListener("input", function(e){
-    state.ideaGapSeconds = Number(e.target.value);
-    document.getElementById("ideaGapSecondsVal").textContent = state.ideaGapSeconds + "s";
+  document.getElementById("ideaMarkers").addEventListener("change", function(e){
+    state.ideaMarkers = e.target.value.split(",").map(function(s){return s.trim();}).filter(Boolean);
     saveState();
   });
   document.getElementById("fillerWords").addEventListener("change", function(e){
