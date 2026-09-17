@@ -356,7 +356,8 @@ input[type="range"]{width:100%;}
       <p class="small-note">Mientras las pausas para pensar sean más cortas que esto, la grabación sigue escuchando sin cortarse. En cualquier momento se puede tocar "Ya terminé" para cerrarla antes, sin esperar.</p>
       <label for="ideaMarkers">Frases que marcan que empezás una idea nueva (separadas por coma)</label>
       <textarea id="ideaMarkers"></textarea>
-      <p class="small-note">Si al hablar decís alguna de estas frases, la app separa lo que sigue como una idea nueva, sin cortar la grabación. También se puede tocar el botón "Otra idea" en cualquier momento para separar a mano, sin depender de lo que digas. Las pausas para pensar, por sí solas, nunca separan ni cortan una idea — así no se pierde ni se parte lo que estás contando.</p>
+      <p class="small-note">Si al hablar decís algo parecido a una de estas frases, la app separa lo que sigue como una idea nueva, sin cortar la grabación. Esto es por coincidencia de palabras, no por entender el sentido — si decís algo con otras palabras que no está en la lista, no lo va a detectar solo.</p>
+      <p class="small-note"><strong>La forma segura de separar ideas es tocar el botón "Otra idea"</strong> en el momento justo, sin depender de decir ninguna frase en especial. Las frases de arriba son un atajo para cuando se acuerden de usarlas, no algo para confiar del todo. Las pausas para pensar, por sí solas, nunca separan ni cortan una idea.</p>
       <label for="fillerWords">Muletillas a limpiar del texto (separadas por coma)</label>
       <textarea id="fillerWords"></textarea>
       <p class="small-note">Estas palabras se borran automáticamente de la transcripción antes de guardarla, para dejar solo la idea. Se pueden agregar o sacar las que hagan falta.</p>
@@ -420,7 +421,19 @@ input[type="range"]{width:100%;}
     vagueWords: ["no sé","no se","tal vez","quizás","quizas","capaz","algo así","algo asi","no tengo claro","más o menos","mas o menos","viste","onda","como que","no sé bien"],
     thresholds: {alta: 8, baja: 1},
     pauseSeconds: 30,
-    ideaMarkers: ["otra cosa","otra idea","cambiando de tema","aparte","ah me acordé","ah, me acorde","también quería decir","tambien queria decir","una cosa más","una cosa mas","por otro lado","algo más que se me ocurre","algo mas que se me ocurre","eso por un lado","y otra cosa"],
+    ideaMarkers: [
+      "otra cosa","otra idea","otro tema","otra cosa mas","otra cosa más",
+      "cambiando de tema","cambio de tema",
+      "aparte","aparte de eso","aparte de esto",
+      "ah me acorde","ah, me acorde","ah me acordé","ah, me acordé","ah tambien","ah, tambien",
+      "me acorde que","me acordé que","ahora que me acuerdo","se me ocurre otra cosa","se me ocurrio otra cosa","se me ocurrió otra cosa",
+      "tambien queria decir","también quería decir","tambien quiero decir","también quiero decir",
+      "tambien tenia ganas","también tenía ganas","tambien queria","también quería",
+      "tambien se me ocurrio","también se me ocurrió","tambien pense en","también pensé en","tambien me acorde","también me acordé",
+      "una cosa mas","una cosa más","algo mas","algo más","algo mas que se me ocurre","algo más que se me ocurre",
+      "por otro lado","por otra parte","eso por un lado","y otra cosa","y aparte",
+      "che otra cosa","che, otra cosa","che tambien","che, tambien"
+    ],
     fillerWords: ["eh","ehh","este","esteee","o sea","digamos","viste","tipo","bueno","mmm","aha","ajá","aja","ponele","buee","digo yo"],
     tipSeen: false
   };
@@ -440,6 +453,12 @@ input[type="range"]{width:100%;}
       var parsed = JSON.parse(raw);
       var merged = Object.assign({}, clone(defaultState), parsed);
       if(!parsed.categories || !parsed.categories.length) merged.categories = clone(defaultState.categories);
+      // always fold in any new default idea-marker phrases (never drops phrases the user added themselves)
+      var existingMarkers = (parsed.ideaMarkers || []).slice();
+      defaultState.ideaMarkers.forEach(function(m){
+        if(existingMarkers.indexOf(m) === -1) existingMarkers.push(m);
+      });
+      merged.ideaMarkers = existingMarkers;
       return merged;
     }catch(e){
       return seedExamples(clone(defaultState));
