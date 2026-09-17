@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bitácora de Ideas</title>
+<meta name="theme-color" content="#1F5045">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..900&family=Karla:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF1EA; --paper-alt:#E2E7DD; --card:#FFFFFF;
+  --ink:#1B2420; --ink-muted:#6B7568; --line:#CBD2C2;
+  --accent:#D6472E; --accent-ink:#FFF8F5;
+  --teal:#1F5045; --teal-ink:#EAF3EF;
+  --amber:#B97A22;
+  --danger:#B23A2E;
+  --shadow:0 10px 30px -12px rgba(27,36,32,.18);
+  --pri-alta:#C1432B; --pri-media:#B97A22; --pri-baja:#6B7A70;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#141C18; --paper-alt:#1C2621; --card:#1E2A24;
+    --ink:#ECF1EA; --ink-muted:#93A096; --line:#2E3B33;
+    --accent:#FF6E52; --accent-ink:#1B0C08;
+    --teal:#5FC9AA; --teal-ink:#08211A;
+    --amber:#E5A855;
+    --danger:#FF7C6B;
+    --shadow:0 10px 30px -12px rgba(0,0,0,.55);
+    --pri-alta:#FF6E52; --pri-media:#E5A855; --pri-baja:#8FA096;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#141C18; --paper-alt:#1C2621; --card:#1E2A24;
+  --ink:#ECF1EA; --ink-muted:#93A096; --line:#2E3B33;
+  --accent:#FF6E52; --accent-ink:#1B0C08;
+  --teal:#5FC9AA; --teal-ink:#08211A;
+  --amber:#E5A855;
+  --danger:#FF7C6B;
+  --shadow:0 10px 30px -12px rgba(0,0,0,.55);
+  --pri-alta:#FF6E52; --pri-media:#E5A855; --pri-baja:#8FA096;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:'Karla',system-ui,-apple-system,'Segoe UI',sans-serif;
+  min-height:100%;
+}
+.app{max-width:480px;margin:0 auto;padding:0 16px calc(40px + env(safe-area-inset-bottom,0px));position:relative;}
+h1,h2,h3{font-family:'Fraunces',Georgia,serif;font-weight:700;text-wrap:balance;margin:0;}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+button{font-family:inherit;}
+::selection{background:var(--accent);color:var(--accent-ink);}
+
+.topbar{
+  position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 0; background:var(--paper); border-bottom:1px solid var(--line);
+}
+.brand{display:flex; align-items:center; gap:8px; font-family:'Fraunces',serif; font-weight:700; font-size:1.25rem;}
+.brand-dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);}
+.icon-btn{
+  width:40px;height:40px;border-radius:12px;border:1px solid var(--line);
+  background:var(--card); color:var(--ink); font-size:1.1rem; cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.icon-btn:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible{
+  outline:2px solid var(--teal); outline-offset:2px;
+}
+
+/* dock */
+.dock{padding:28px 0 8px; display:flex; flex-direction:column; align-items:center; gap:14px;}
+.rec-wrap{position:relative; width:172px; height:172px; display:flex; align-items:center; justify-content:center;}
+.rec-ring{position:absolute; border-radius:50%; border:1px solid var(--line);}
+.rec-ring.r1{width:100%;height:100%;}
+.rec-ring.r2{width:78%;height:78%;}
+.rec-btn{
+  position:relative; width:112px; height:112px; border-radius:50%;
+  background:var(--accent); color:var(--accent-ink); border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:var(--shadow);
+  transition:transform .15s ease;
+}
+.rec-btn:active{transform:scale(.96);}
+.rec-btn.recording{animation:pulse 1.4s ease-in-out infinite;}
+@media (prefers-reduced-motion: reduce){ .rec-btn.recording{animation:none;} }
+@keyframes pulse{
+  0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent), var(--shadow);}
+  50%{box-shadow:0 0 0 16px color-mix(in srgb, var(--accent) 0%, transparent), var(--shadow);}
+}
+.dock-hint{margin:0; color:var(--ink-muted); font-size:.92rem;}
+.dock-hint strong{color:var(--ink);}
+
+.live-card{
+  width:100%; background:var(--card); border:1px solid var(--line); border-radius:16px;
+  padding:14px 16px; box-shadow:var(--shadow); margin-top:6px;
+}
+.live-card p{margin:0 0 10px; min-height:1.4em; line-height:1.5;}
+.wave{display:flex; align-items:flex-end; gap:4px; height:22px;}
+.wave span{width:4px; background:var(--accent); border-radius:2px; animation:bar 1s ease-in-out infinite;}
+.wave span:nth-child(1){height:40%;animation-delay:0s;}
+.wave span:nth-child(2){height:90%;animation-delay:.1s;}
+.wave span:nth-child(3){height:60%;animation-delay:.2s;}
+.wave span:nth-child(4){height:100%;animation-delay:.3s;}
+.wave span:nth-child(5){height:50%;animation-delay:.4s;}
+@keyframes bar{0%,100%{transform:scaleY(.4);}50%{transform:scaleY(1);}}
+@media (prefers-reduced-motion: reduce){ .wave span{animation:none;} }
+.audio-player{width:100%;margin-bottom:10px;}
+
+/* tip banner */
+.tip{
+  display:flex; gap:10px; align-items:flex-start; background:var(--paper-alt);
+  border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin:14px 0; font-size:.85rem; color:var(--ink-muted);
+}
+.tip button{background:none;border:none;color:var(--teal);font-weight:700;cursor:pointer;padding:0;font-size:.85rem;}
+
+/* board */
+.board{margin-top:18px;}
+.filter-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+.chip{
+  border:1px solid var(--line); background:var(--card); color:var(--ink);
+  border-radius:999px; padding:6px 12px; font-size:.8rem; cursor:pointer; white-space:nowrap;
+  display:inline-flex; align-items:center; gap:6px;
+}
+.chip[aria-pressed="true"]{background:var(--teal); color:var(--teal-ink); border-color:var(--teal);}
+.chip .dot{width:8px;height:8px;border-radius:50%;}
+
+.bucket{margin-bottom:22px;}
+.bucket-head{display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; padding:6px 0;}
+.bucket-head h2{font-size:1.05rem;}
+.bucket-count{
+  font-family:'IBM Plex Mono',monospace; font-size:.75rem; background:var(--paper-alt);
+  border-radius:999px; padding:2px 9px; color:var(--ink-muted);
+}
+.bucket-flag{width:10px;height:10px;border-radius:3px;transform:rotate(45deg);}
+.bucket-caret{margin-left:auto; color:var(--ink-muted); transition:transform .15s ease;}
+.bucket.collapsed .bucket-caret{transform:rotate(-90deg);}
+.bucket.collapsed .bucket-list{display:none;}
+.bucket-list{display:flex; flex-direction:column; gap:10px; margin-top:10px;}
+.empty-note{color:var(--ink-muted); font-size:.85rem; padding:10px 2px;}
+
+.idea{
+  background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px;
+  box-shadow:var(--shadow);
+}
+.idea-top{display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;}
+.cat-chip{
+  display:inline-flex; align-items:center; gap:5px; font-size:.72rem; font-weight:600;
+  padding:3px 9px; border-radius:999px; background:var(--paper-alt);
+}
+.cat-chip .dot{width:7px;height:7px;border-radius:50%;}
+.ts{font-family:'IBM Plex Mono',monospace; font-size:.7rem; color:var(--ink-muted); margin-left:auto;}
+.example-tag{font-size:.68rem; color:var(--ink-muted); border:1px dashed var(--line); border-radius:999px; padding:2px 8px;}
+.vague-tag{font-size:.68rem; color:var(--pri-baja);}
+.idea-text{margin:2px 0 8px; line-height:1.5; white-space:pre-wrap;}
+.idea-actions{display:flex; gap:8px;}
+.link-btn{
+  background:none; border:none; color:var(--ink-muted); font-size:.78rem; cursor:pointer; padding:4px 6px; border-radius:8px;
+}
+.link-btn:hover{color:var(--ink); background:var(--paper-alt);}
+.link-btn.danger{color:var(--danger);}
+.link-btn.confirming{color:#fff; background:var(--danger);}
+.idea textarea.edit-area{width:100%; font-family:inherit; font-size:.95rem; padding:8px; border-radius:10px; border:1px solid var(--line); background:var(--paper); color:var(--ink); resize:vertical; min-height:64px;}
+.idea select.edit-cat{margin-top:6px; width:100%;}
+
+/* sheets / overlays */
+.overlay{position:fixed; inset:0; background:rgba(20,28,24,.45); display:flex; align-items:flex-end; justify-content:center; z-index:40;}
+.overlay[hidden]{display:none;}
+.sheet{
+  width:100%; max-width:480px; max-height:88vh; overflow-y:auto; background:var(--paper); border-radius:22px 22px 0 0;
+  padding:18px 18px calc(24px + env(safe-area-inset-bottom,0px)); box-shadow:var(--shadow);
+}
+.sheet-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+.review-actions{display:flex; gap:10px; margin-top:14px;}
+.btn{
+  border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink);
+  padding:11px 16px; font-size:.92rem; font-weight:600; cursor:pointer; flex:1;
+}
+.btn.primary{background:var(--teal); color:var(--teal-ink); border-color:var(--teal);}
+.btn.ghost{background:transparent;}
+textarea, input[type="text"], select{
+  width:100%; font-family:inherit; font-size:.95rem; padding:10px 12px; border-radius:10px;
+  border:1px solid var(--line); background:var(--card); color:var(--ink);
+}
+textarea{min-height:96px; resize:vertical;}
+label{font-size:.78rem; color:var(--ink-muted); font-weight:600; display:block; margin:12px 0 5px;}
+.field-row{display:flex; gap:10px; align-items:center;}
+.badge{
+  font-size:.72rem; font-weight:700; padding:4px 10px; border-radius:999px; color:#fff;
+}
+
+/* tabs */
+.tabs{display:flex; gap:6px; margin-bottom:14px; border-bottom:1px solid var(--line);}
+.tab{background:none; border:none; padding:9px 4px; font-size:.85rem; font-weight:600; color:var(--ink-muted); cursor:pointer; border-bottom:2px solid transparent; margin-right:14px;}
+.tab[aria-selected="true"]{color:var(--ink); border-color:var(--accent);}
+.tabpanel[hidden]{display:none;}
+
+.cat-row{display:flex; gap:8px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px;}
+.cat-row .swatch{width:16px;height:16px;border-radius:50%;flex:none;border:none;padding:0;}
+.cat-row .grow{flex:1; display:flex; flex-direction:column; gap:5px;}
+.cat-row input[type="text"]{padding:6px 9px; font-size:.85rem;}
+.weight-row{display:flex; align-items:center; gap:8px; font-size:.72rem; color:var(--ink-muted);}
+input[type="range"]{width:100%;}
+.add-cat{display:flex; gap:8px; margin:10px 0 4px;}
+.small-note{font-size:.78rem; color:var(--ink-muted); line-height:1.5; margin-top:6px;}
+.danger-zone{margin-top:22px; padding-top:16px; border-top:1px solid var(--line);}
+.toast{
+  position:fixed; left:50%; bottom:calc(22px + env(safe-area-inset-bottom,0px)); transform:translate(-50%,0);
+  background:var(--ink); color:var(--paper); padding:9px 16px; border-radius:999px; font-size:.85rem;
+  opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:60;
+}
+.toast.show{opacity:1; transform:translate(-50%,-6px);}
+@media (max-width:360px){ .rec-wrap{width:140px;height:140px;} .rec-btn{width:92px;height:92px;} }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="brand-dot"></span>Bitácora</div>
+    <button class="icon-btn" id="btnSettings" aria-label="Ajustes">⚙</button>
+  </header>
+
+  <div id="tipBanner" class="tip" hidden>
+    <span>💡</span>
+    <div>
+      Para abrir esto con un toque, agregala a la pantalla de inicio del teléfono (menú del navegador → "Agregar a pantalla de inicio"). En Android la voz se transcribe sola; en iPhone graba el audio y lo escribís vos misma al toque.
+      <div><button id="tipDismiss">Entendido</button></div>
+    </div>
+  </div>
+
+  <section class="dock">
+    <div class="rec-wrap">
+      <div class="rec-ring r1"></div>
+      <div class="rec-ring r2"></div>
+      <button class="rec-btn" id="recBtn" aria-label="Grabar una idea">
+        <svg id="recIcon" width="34" height="34" viewBox="0 0 24 24" fill="none">
+          <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/>
+          <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+        </svg>
+      </button>
+    </div>
+    <p class="dock-hint" id="dockHint">Tocá para grabar una idea <strong>tal como se te ocurre</strong></p>
+
+    <div class="live-card" id="liveCard" hidden>
+      <p id="liveText" class="mono"></p>
+      <div class="wave" id="waveEl"><span></span><span></span><span></span><span></span><span></span></div>
+    </div>
+  </section>
+
+  <section class="board">
+    <div class="filter-row" id="filterRow"></div>
+    <div class="bucket" id="bucket-alta" data-bucket="alta">
+      <div class="bucket-head" data-toggle="bucket-alta">
+        <span class="bucket-flag" style="background:var(--pri-alta)"></span>
+        <h2>Alta prioridad</h2>
+        <span class="bucket-count mono" id="count-alta">0</span>
+        <span class="bucket-caret">▾</span>
+      </div>
+      <div class="bucket-list" id="list-alta"></div>
+    </div>
+    <div class="bucket" id="bucket-media" data-bucket="media">
+      <div class="bucket-head" data-toggle="bucket-media">
+        <span class="bucket-flag" style="background:var(--pri-media)"></span>
+        <h2>A pensar</h2>
+        <span class="bucket-count mono" id="count-media">0</span>
+        <span class="bucket-caret">▾</span>
+      </div>
+      <div class="bucket-list" id="list-media"></div>
+    </div>
+    <div class="bucket collapsed" id="bucket-baja" data-bucket="baja">
+      <div class="bucket-head" data-toggle="bucket-baja">
+        <span class="bucket-flag" style="background:var(--pri-baja)"></span>
+        <h2>Ideas sueltas / vagas</h2>
+        <span class="bucket-count mono" id="count-baja">0</span>
+        <span class="bucket-caret">▾</span>
+      </div>
+      <div class="bucket-list" id="list-baja"></div>
+    </div>
+  </section>
+</div>
+
+<!-- review overlay -->
+<div class="overlay" id="reviewOverlay" hidden>
+  <div class="sheet">
+    <div class="sheet-head"><h3>Revisá tu idea</h3><button class="icon-btn" id="closeReview" aria-label="Cerrar">✕</button></div>
+    <audio id="reviewAudio" class="audio-player" controls hidden></audio>
+    <textarea id="reviewText" placeholder="Escribí o corregí lo que dijiste..."></textarea>
+    <label for="reviewCat">Categoría</label>
+    <select id="reviewCat"></select>
+    <div class="field-row" style="margin-top:10px;">
+      <span class="small-note">Prioridad detectada:</span>
+      <span class="badge" id="reviewBadge">—</span>
+    </div>
+    <div class="review-actions">
+      <button class="btn ghost" id="discardReview">Descartar</button>
+      <button class="btn primary" id="saveReview">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- settings overlay -->
+<div class="overlay" id="settingsOverlay" hidden>
+  <div class="sheet">
+    <div class="sheet-head"><h3>Ajustes</h3><button class="icon-btn" id="closeSettings" aria-label="Cerrar">✕</button></div>
+    <div class="tabs">
+      <button class="tab" data-tab="cats" aria-selected="true">Categorías</button>
+      <button class="tab" data-tab="pri" aria-selected="false">Prioridad</button>
+      <button class="tab" data-tab="data" aria-selected="false">Datos</button>
+    </div>
+    <div class="tabpanel" id="panel-cats">
+      <p class="small-note">Cada categoría tiene palabras clave y un peso (cuánto empuja la prioridad hacia arriba). La IA busca esas palabras en lo que se graba.</p>
+      <div id="catList"></div>
+      <div class="add-cat">
+        <input type="text" id="newCatName" placeholder="Nueva categoría (ej: Regalos)">
+        <button class="btn" id="addCatBtn" style="flex:none;">Agregar</button>
+      </div>
+    </div>
+    <div class="tabpanel" id="panel-pri" hidden>
+      <label for="boostWords">Palabras que suben la prioridad (separadas por coma)</label>
+      <textarea id="boostWords"></textarea>
+      <label for="vagueWords">Palabras que bajan la prioridad / marcan idea vaga</label>
+      <textarea id="vagueWords"></textarea>
+      <label for="thAlta">Puntaje mínimo para "Alta prioridad": <span id="thAltaVal" class="mono"></span></label>
+      <input type="range" id="thAlta" min="-4" max="20" step="1">
+      <label for="thBaja">Puntaje máximo para "Idea vaga / suelta": <span id="thBajaVal" class="mono"></span></label>
+      <input type="range" id="thBaja" min="-8" max="8" step="1">
+      <p class="small-note">Lo que queda en el medio se muestra en "A pensar".</p>
+    </div>
+    <div class="tabpanel" id="panel-data" hidden>
+      <p class="small-note">La transcripción por voz usa el reconocimiento de voz del navegador (funciona mejor en Chrome / Android). Todo se guarda solo en este teléfono, en este navegador.</p>
+      <button class="btn primary" id="exportBtn" style="width:100%;margin-top:10px;">Exportar para Excel / Sheets</button>
+      <div class="danger-zone">
+        <button class="link-btn danger" id="clearAllBtn">Borrar todas las ideas</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- export overlay -->
+<div class="overlay" id="exportOverlay" hidden>
+  <div class="sheet">
+    <div class="sheet-head"><h3>Copiar datos</h3><button class="icon-btn" id="closeExport" aria-label="Cerrar">✕</button></div>
+    <p class="small-note">Copiá este texto y pegalo en una hoja de cálculo (Excel o Google Sheets) con Ctrl+V / Cmd+V — cada columna cae en su lugar sola.</p>
+    <textarea id="exportText" class="mono" style="min-height:180px;" readonly></textarea>
+    <div class="review-actions">
+      <button class="btn primary" id="copyExportBtn" style="width:100%;">Copiar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  var STORE_KEY = "bitacora_ideas_v1";
+  var palette = ["#D6472E","#1F5045","#B97A22","#5B6EA6","#8A5FA6","#4E8B6B"];
+
+  var defaultState = {
+    ideas: [],
+    categories: [
+      {id:"proyecto", name:"Proyecto", color:"#1F5045", weight:5, isDefault:false,
+        keywords:["proyecto","emprendimiento","negocio","crear","desarrollar","lanzar","marca","clienta","cliente","app","idea de negocio"]},
+      {id:"trabajo", name:"Trabajo", color:"#B97A22", weight:4, isDefault:false,
+        keywords:["reunión","reunion","mail","correo","entregar","tarea","informe","jefe","trabajo","cliente","presupuesto"]},
+      {id:"creativa", name:"Creativa", color:"#8A5FA6", weight:3, isDefault:false,
+        keywords:["diseño","dibujar","escribir","pintar","canción","cancion","foto","video","arte","boceto"]},
+      {id:"personal", name:"Personal", color:"#5B6EA6", weight:2, isDefault:false,
+        keywords:["casa","familia","salud","viaje","plata","comprar","cumpleaños","cumpleanos","turno"]},
+      {id:"random", name:"Suelta", color:"#6B7A70", weight:1, isDefault:true, keywords:[]}
+    ],
+    boostWords: ["tengo que","necesito","urgente","hoy","mañana","ya","ahora","quiero hacer","voy a","deadline","importante"],
+    vagueWords: ["no sé","no se","tal vez","quizás","quizas","capaz","algo así","algo asi","no tengo claro","más o menos","mas o menos","viste","onda","como que","no sé bien"],
+    thresholds: {alta: 8, baja: 1},
+    tipSeen: false
+  };
+
+  function normalize(s){
+    return (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
+  }
+
+  function uid(){
+    try{ return crypto.randomUUID(); }catch(e){ return "id-"+Date.now()+"-"+Math.random().toString(16).slice(2); }
+  }
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORE_KEY);
+      if(!raw) return seedExamples(clone(defaultState));
+      var parsed = JSON.parse(raw);
+      var merged = Object.assign({}, clone(defaultState), parsed);
+      if(!parsed.categories || !parsed.categories.length) merged.categories = clone(defaultState.categories);
+      return merged;
+    }catch(e){
+      return seedExamples(clone(defaultState));
+    }
+  }
+
+  function clone(o){ return JSON.parse(JSON.stringify(o)); }
+
+  function seedExamples(state){
+    var now = Date.now();
+    state.ideas = [
+      {id:uid(), text:"Armar un kit de bienvenida para clientas nuevas con una tarjetita escrita a mano.", categoryId:"proyecto", bucket:"alta", score:12, ts: now-1000*60*40, isExample:true, isVague:false},
+      {id:uid(), text:"Capaz estaría bueno probar algo con sublimado en madera, no sé, viste, tengo que pensarlo más.", categoryId:"creativa", bucket:"baja", score:0, ts: now-1000*60*60*5, isExample:true, isVague:true},
+      {id:uid(), text:"Mandar el presupuesto a Marcela hoy antes de las cinco, es urgente.", categoryId:"trabajo", bucket:"alta", score:14, ts: now-1000*60*60*20, isExample:true, isVague:false}
+    ];
+    return state;
+  }
+
+  function saveState(){
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){ /* storage unavailable, continue in-memory */ }
+  }
+
+  var state = loadState();
+
+  function catById(id){
+    for(var i=0;i<state.categories.length;i++) if(state.categories[i].id===id) return state.categories[i];
+    return state.categories[state.categories.length-1];
+  }
+
+  function classify(text){
+    var norm = normalize(text);
+    var words = norm.split(/\s+/).filter(Boolean);
+    var best = null, bestScore = 0;
+    state.categories.forEach(function(cat){
+      if(!cat.keywords || !cat.keywords.length) return;
+      var hits = 0;
+      cat.keywords.forEach(function(k){
+        var nk = normalize(k);
+        if(!nk) return;
+        if(nk.indexOf(" ") > -1){
+          if(norm.indexOf(nk) > -1) hits++;
+        } else {
+          words.forEach(function(w){ if(w===nk) hits++; });
+        }
+      });
+      var score = hits * cat.weight;
+      if(hits>0 && score>bestScore){ best = cat; bestScore = score; }
+    });
+    var category = best || state.categories.find(function(c){return c.isDefault;}) || state.categories[state.categories.length-1];
+
+    var boostHits = 0;
+    state.boostWords.forEach(function(b){ var nb=normalize(b); if(nb && norm.indexOf(nb)>-1) boostHits++; });
+    var vagueHits = 0;
+    state.vagueWords.forEach(function(v){ var nv=normalize(v); if(nv && norm.indexOf(nv)>-1) vagueHits++; });
+    var hasDateWord = /(lunes|martes|miercoles|jueves|viernes|sabado|domingo|manana|hoy)\b/.test(norm) || /\d/.test(text);
+    var shortText = words.length < 6;
+
+    var score = (category.weight*2) + (boostHits*3) - (vagueHits*2) + (hasDateWord?2:0) - (shortText?2:0);
+    var bucket;
+    if(score >= state.thresholds.alta) bucket = "alta";
+    else if(score <= state.thresholds.baja) bucket = "baja";
+    else bucket = "media";
+
+    return {categoryId: category.id, score: score, bucket: bucket, isVague: vagueHits>0 && bucket!=="alta"};
+  }
+
+  /* ---------- recording ---------- */
+  var recBtn = document.getElementById("recBtn");
+  var dockHint = document.getElementById("dockHint");
+  var liveCard = document.getElementById("liveCard");
+  var liveText = document.getElementById("liveText");
+
+  var recognition = null, recognizing = false, manualStop = false, finalTranscript = "", silenceTimer = null;
+  var mediaRecorder = null, audioChunks = [], audioBlobUrl = null, mediaStream = null;
+  var usingManual = false;
+
+  function supportsSpeech(){ return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+
+  recBtn.addEventListener("click", function(){
+    if(recognizing || usingManual) { stopRecording(); return; }
+    startRecording();
+  });
+
+  function setRecordingUI(on){
+    recBtn.classList.toggle("recording", !!on);
+    dockHint.textContent = on ? "Grabando… tocá de nuevo para terminar" : "Tocá para grabar una idea";
+  }
+
+  function startRecording(){
+    finalTranscript = "";
+    if(supportsSpeech()){
+      startSpeechRecording();
+    } else {
+      startManualRecording();
+    }
+  }
+
+  function startSpeechRecording(){
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    try{
+      recognition = new SR();
+    }catch(e){ startManualRecording(); return; }
+    recognition.lang = "es-UY";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    manualStop = false;
+
+    recognition.onstart = function(){
+      recognizing = true;
+      setRecordingUI(true);
+      liveCard.hidden = false;
+      liveText.textContent = "…";
+    };
+    recognition.onresult = function(e){
+      var interim = "";
+      for(var i=e.resultIndex;i<e.results.length;i++){
+        var t = e.results[i][0].transcript;
+        if(e.results[i].isFinal) finalTranscript += t + " ";
+        else interim += t;
+      }
+      liveText.textContent = (finalTranscript + interim).trim() || "…";
+      resetSilenceTimer();
+    };
+    recognition.onerror = function(e){
+      if(e.error === "not-allowed" || e.error === "service-not-allowed"){
+        recognizing = false;
+        setRecordingUI(false);
+        liveCard.hidden = true;
+        showToast("No se pudo acceder al micrófono.");
+      }
+    };
+    recognition.onend = function(){
+      if(recognizing && !manualStop){
+        try{ recognition.start(); }catch(err){ /* ignore double-start */ }
+      }
+    };
+    try{ recognition.start(); }catch(err){ /* already running */ }
+    resetSilenceTimer();
+  }
+
+  function resetSilenceTimer(){
+    clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(function(){ if(recognizing) stopRecording(); }, 3200);
+  }
+
+  function startManualRecording(){
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      showToast("Este navegador no puede grabar audio acá.");
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      mediaStream = stream;
+      audioChunks = [];
+      try{
+        mediaRecorder = new MediaRecorder(stream);
+      }catch(e){
+        showToast("No se pudo iniciar la grabación.");
+        stream.getTracks().forEach(function(t){t.stop();});
+        return;
+      }
+      mediaRecorder.ondataavailable = function(e){ if(e.data && e.data.size>0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = function(){
+        var blob = new Blob(audioChunks, {type: mediaRecorder.mimeType || "audio/webm"});
+        if(audioBlobUrl) URL.revokeObjectURL(audioBlobUrl);
+        audioBlobUrl = URL.createObjectURL(blob);
+        stream.getTracks().forEach(function(t){t.stop();});
+        openManualReview();
+      };
+      mediaRecorder.start();
+      usingManual = true;
+      setRecordingUI(true);
+      dockHint.textContent = "Grabando audio… tocá de nuevo para terminar";
+    }).catch(function(){
+      showToast("No se pudo acceder al micrófono.");
+    });
+  }
+
+  function stopRecording(){
+    if(usingManual){
+      usingManual = false;
+      setRecordingUI(false);
+      if(mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+      return;
+    }
+    manualStop = true;
+    recognizing = false;
+    clearTimeout(silenceTimer);
+    setRecordingUI(false);
+    liveCard.hidden = true;
+    if(recognition){ try{ recognition.stop(); }catch(e){} }
+    var text = finalTranscript.trim();
+    if(!text){ return; }
+    openReview(text);
+  }
+
+  /* ---------- review sheet ---------- */
+  var reviewOverlay = document.getElementById("reviewOverlay");
+  var reviewText = document.getElementById("reviewText");
+  var reviewCat = document.getElementById("reviewCat");
+  var reviewBadge = document.getElementById("reviewBadge");
+  var reviewAudio = document.getElementById("reviewAudio");
+  var editingIdeaId = null;
+
+  function fillCategorySelect(select, selectedId){
+    select.innerHTML = "";
+    state.categories.forEach(function(c){
+      var opt = document.createElement("option");
+      opt.value = c.id; opt.textContent = c.name;
+      if(c.id===selectedId) opt.selected = true;
+      select.appendChild(opt);
+    });
+  }
+
+  function bucketLabel(b){
+    return b==="alta" ? "Alta" : (b==="baja" ? "Vaga / baja" : "A pensar");
+  }
+  function bucketColorVar(b){
+    return b==="alta" ? "var(--pri-alta)" : (b==="baja" ? "var(--pri-baja)" : "var(--pri-media)");
+  }
+
+  function updateReviewBadge(){
+    var result = classify(reviewText.value);
+    if(reviewCat.dataset.manual !== "1"){
+      reviewCat.value = result.categoryId;
+    }
+    reviewBadge.textContent = bucketLabel(result.bucket);
+    reviewBadge.style.background = bucketColorVar(result.bucket);
+    reviewBadge.dataset.bucket = result.bucket;
+    reviewBadge.dataset.score = result.score;
+    reviewBadge.dataset.vague = result.isVague ? "1":"0";
+  }
+
+  function openReview(text){
+    editingIdeaId = null;
+    reviewAudio.hidden = true; reviewAudio.removeAttribute("src");
+    reviewText.value = text;
+    reviewCat.dataset.manual = "0";
+    fillCategorySelect(reviewCat, null);
+    updateReviewBadge();
+    reviewOverlay.hidden = false;
+  }
+
+  function openManualReview(){
+    editingIdeaId = null;
+    reviewAudio.hidden = false;
+    reviewAudio.src = audioBlobUrl;
+    reviewText.value = "";
+    reviewCat.dataset.manual = "0";
+    fillCategorySelect(reviewCat, null);
+    updateReviewBadge();
+    reviewOverlay.hidden = false;
+    reviewText.focus();
+  }
+
+  function openEditReview(idea){
+    editingIdeaId = idea.id;
+    reviewAudio.hidden = true; reviewAudio.removeAttribute("src");
+    reviewText.value = idea.text;
+    reviewCat.dataset.manual = "1";
+    fillCategorySelect(reviewCat, idea.categoryId);
+    reviewBadge.textContent = bucketLabel(idea.bucket);
+    reviewBadge.style.background = bucketColorVar(idea.bucket);
+    reviewBadge.dataset.bucket = idea.bucket;
+    reviewOverlay.hidden = false;
+  }
+
+  reviewText.addEventListener("input", updateReviewBadge);
+  reviewCat.addEventListener("change", function(){
+    reviewCat.dataset.manual = "1";
+    var cat = catById(reviewCat.value);
+    var base = classify(reviewText.value);
+    var score = (cat.weight*2) + (base.score - (catById(base.categoryId).weight*2));
+    var bucket = score >= state.thresholds.alta ? "alta" : (score <= state.thresholds.baja ? "baja" : "media");
+    reviewBadge.textContent = bucketLabel(bucket);
+    reviewBadge.style.background = bucketColorVar(bucket);
+    reviewBadge.dataset.bucket = bucket;
+    reviewBadge.dataset.score = score;
+  });
+
+  document.getElementById("closeReview").addEventListener("click", closeReview);
+  document.getElementById("discardReview").addEventListener("click", closeReview);
+  function closeReview(){
+    reviewOverlay.hidden = true;
+    if(audioBlobUrl){ URL.revokeObjectURL(audioBlobUrl); audioBlobUrl = null; }
+  }
+
+  document.getElementById("saveReview").addEventListener("click", function(){
+    var text = reviewText.value.trim();
+    if(!text){ closeReview(); return; }
+    var bucket = reviewBadge.dataset.bucket || "media";
+    var score = Number(reviewBadge.dataset.score || 0);
+    if(editingIdeaId){
+      var idea = state.ideas.find(function(i){return i.id===editingIdeaId;});
+      if(idea){
+        idea.text = text; idea.categoryId = reviewCat.value; idea.bucket = bucket; idea.score = score;
+      }
+    } else {
+      state.ideas.unshift({
+        id: uid(), text: text, categoryId: reviewCat.value, bucket: bucket, score: score,
+        ts: Date.now(), isExample:false, isVague: reviewBadge.dataset.vague==="1"
+      });
+    }
+    saveState();
+    renderBoard();
+    closeReview();
+    showToast("Guardado ✓");
+  });
+
+  /* ---------- board / list ---------- */
+  var activeFilter = "todas";
+
+  function timeAgo(ts){
+    var diff = Date.now() - ts;
+    var min = Math.floor(diff/60000);
+    if(min < 1) return "ahora";
+    if(min < 60) return "hace " + min + " min";
+    var hr = Math.floor(min/60);
+    if(hr < 24) return "hace " + hr + "h";
+    var d = Math.floor(hr/24);
+    return "hace " + d + "d";
+  }
+
+  function renderFilters(){
+    var row = document.getElementById("filterRow");
+    row.innerHTML = "";
+    var all = document.createElement("button");
+    all.className = "chip"; all.textContent = "Todas";
+    all.setAttribute("aria-pressed", activeFilter==="todas" ? "true":"false");
+    all.addEventListener("click", function(){ activeFilter="todas"; renderBoard(); });
+    row.appendChild(all);
+    state.categories.forEach(function(c){
+      var chip = document.createElement("button");
+      chip.className = "chip";
+      chip.setAttribute("aria-pressed", activeFilter===c.id ? "true":"false");
+      chip.innerHTML = '<span class="dot" style="background:'+c.color+'"></span>' + c.name;
+      chip.addEventListener("click", function(){ activeFilter = c.id; renderBoard(); });
+      row.appendChild(chip);
+    });
+  }
+
+  var confirmingDelete = null;
+
+  function ideaCard(idea){
+    var cat = catById(idea.categoryId);
+    var card = document.createElement("div");
+    card.className = "idea";
+    var top = document.createElement("div");
+    top.className = "idea-top";
+    top.innerHTML =
+      '<span class="cat-chip"><span class="dot" style="background:'+cat.color+'"></span>'+cat.name+'</span>' +
+      (idea.isExample ? '<span class="example-tag">ejemplo</span>' : '') +
+      (idea.isVague ? '<span class="vague-tag">💭 vaga</span>' : '') +
+      '<span class="ts">'+timeAgo(idea.ts)+'</span>';
+    var txt = document.createElement("p");
+    txt.className = "idea-text";
+    txt.textContent = idea.text;
+    var actions = document.createElement("div");
+    actions.className = "idea-actions";
+    var editBtn = document.createElement("button");
+    editBtn.className = "link-btn"; editBtn.textContent = "Editar";
+    editBtn.addEventListener("click", function(){ openEditReview(idea); });
+    var delBtn = document.createElement("button");
+    delBtn.className = "link-btn danger"; delBtn.textContent = "Borrar";
+    delBtn.addEventListener("click", function(){
+      if(confirmingDelete === idea.id){
+        state.ideas = state.ideas.filter(function(i){return i.id!==idea.id;});
+        saveState(); confirmingDelete = null; renderBoard();
+        showToast("Borrado");
+      } else {
+        confirmingDelete = idea.id;
+        delBtn.textContent = "¿Seguro?";
+        delBtn.classList.add("confirming");
+        setTimeout(function(){
+          if(confirmingDelete === idea.id){
+            confirmingDelete = null; delBtn.textContent = "Borrar"; delBtn.classList.remove("confirming");
+          }
+        }, 2800);
+      }
+    });
+    actions.appendChild(editBtn); actions.appendChild(delBtn);
+    card.appendChild(top); card.appendChild(txt); card.appendChild(actions);
+    return card;
+  }
+
+  function renderBoard(){
+    renderFilters();
+    ["alta","media","baja"].forEach(function(bucket){
+      var listEl = document.getElementById("list-"+bucket);
+      var countEl = document.getElementById("count-"+bucket);
+      listEl.innerHTML = "";
+      var items = state.ideas.filter(function(i){
+        return i.bucket===bucket && (activeFilter==="todas" || i.categoryId===activeFilter);
+      });
+      countEl.textContent = items.length;
+      if(!items.length){
+        var note = document.createElement("p");
+        note.className = "empty-note";
+        note.textContent = "Nada acá todavía.";
+        listEl.appendChild(note);
+      } else {
+        items.sort(function(a,b){ return b.ts - a.ts; });
+        items.forEach(function(idea){ listEl.appendChild(ideaCard(idea)); });
+      }
+    });
+  }
+
+  document.querySelectorAll(".bucket-head").forEach(function(head){
+    head.addEventListener("click", function(){
+      document.getElementById(head.dataset.toggle).classList.toggle("collapsed");
+    });
+  });
+
+  /* ---------- toast ---------- */
+  var toastTimer = null;
+  function showToast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 1800);
+  }
+
+  /* ---------- settings ---------- */
+  var settingsOverlay = document.getElementById("settingsOverlay");
+  document.getElementById("btnSettings").addEventListener("click", function(){
+    renderCategorySettings();
+    renderPrioritySettings();
+    settingsOverlay.hidden = false;
+  });
+  document.getElementById("closeSettings").addEventListener("click", function(){ settingsOverlay.hidden = true; });
+
+  document.querySelectorAll(".tab").forEach(function(tab){
+    tab.addEventListener("click", function(){
+      document.querySelectorAll(".tab").forEach(function(t){ t.setAttribute("aria-selected","false"); });
+      tab.setAttribute("aria-selected","true");
+      ["cats","pri","data"].forEach(function(name){
+        document.getElementById("panel-"+name).hidden = (name !== tab.dataset.tab);
+      });
+    });
+  });
+
+  function renderCategorySettings(){
+    var wrap = document.getElementById("catList");
+    wrap.innerHTML = "";
+    state.categories.forEach(function(cat){
+      var row = document.createElement("div");
+      row.className = "cat-row";
+      var swatch = document.createElement("input");
+      swatch.type = "color"; swatch.className = "swatch"; swatch.value = cat.color;
+      swatch.addEventListener("input", function(){ cat.color = swatch.value; saveState(); renderBoard(); });
+
+      var grow = document.createElement("div");
+      grow.className = "grow";
+
+      var nameInput = document.createElement("input");
+      nameInput.type = "text"; nameInput.value = cat.name;
+      nameInput.addEventListener("change", function(){ cat.name = nameInput.value.trim() || cat.name; saveState(); renderBoard(); });
+
+      var kwInput = document.createElement("input");
+      kwInput.type = "text"; kwInput.value = cat.keywords.join(", ");
+      kwInput.placeholder = "palabras clave separadas por coma";
+      kwInput.addEventListener("change", function(){
+        cat.keywords = kwInput.value.split(",").map(function(s){return s.trim();}).filter(Boolean);
+        saveState();
+      });
+
+      var weightRow = document.createElement("div");
+      weightRow.className = "weight-row";
+      var weightLabel = document.createElement("span");
+      weightLabel.textContent = "Peso: " + cat.weight;
+      var weightRange = document.createElement("input");
+      weightRange.type = "range"; weightRange.min = "1"; weightRange.max = "5"; weightRange.step = "1"; weightRange.value = cat.weight;
+      weightRange.addEventListener("input", function(){
+        cat.weight = Number(weightRange.value);
+        weightLabel.textContent = "Peso: " + cat.weight;
+        saveState();
+      });
+      weightRow.appendChild(weightLabel); weightRow.appendChild(weightRange);
+
+      grow.appendChild(nameInput); grow.appendChild(kwInput); grow.appendChild(weightRow);
+
+      row.appendChild(swatch); row.appendChild(grow);
+
+      if(state.categories.length > 1){
+        var del = document.createElement("button");
+        del.className = "link-btn danger"; del.textContent = "✕";
+        del.style.alignSelf = "flex-start";
+        del.addEventListener("click", function(){
+          if(del.dataset.confirm === "1"){
+            state.categories = state.categories.filter(function(c){return c.id!==cat.id;});
+            if(!state.categories.some(function(c){return c.isDefault;})) state.categories[state.categories.length-1].isDefault = true;
+            state.ideas.forEach(function(i){ if(i.categoryId===cat.id) i.categoryId = state.categories.find(function(c){return c.isDefault;}).id; });
+            saveState(); renderCategorySettings(); renderBoard();
+          } else {
+            del.dataset.confirm = "1"; del.textContent = "¿Sí?";
+            setTimeout(function(){ del.dataset.confirm=""; del.textContent="✕"; }, 2500);
+          }
+        });
+        row.appendChild(del);
+      }
+      wrap.appendChild(row);
+    });
+  }
+
+  document.getElementById("addCatBtn").addEventListener("click", function(){
+    var input = document.getElementById("newCatName");
+    var name = input.value.trim();
+    if(!name) return;
+    var color = palette[state.categories.length % palette.length];
+    state.categories.push({id: uid(), name: name, color: color, weight: 2, isDefault:false, keywords: []});
+    input.value = "";
+    saveState(); renderCategorySettings(); renderBoard();
+  });
+
+  function renderPrioritySettings(){
+    document.getElementById("boostWords").value = state.boostWords.join(", ");
+    document.getElementById("vagueWords").value = state.vagueWords.join(", ");
+    var thAlta = document.getElementById("thAlta");
+    var thBaja = document.getElementById("thBaja");
+    thAlta.value = state.thresholds.alta;
+    thBaja.value = state.thresholds.baja;
+    document.getElementById("thAltaVal").textContent = state.thresholds.alta;
+    document.getElementById("thBajaVal").textContent = state.thresholds.baja;
+  }
+  document.getElementById("boostWords").addEventListener("change", function(e){
+    state.boostWords = e.target.value.split(",").map(function(s){return s.trim();}).filter(Boolean);
+    saveState();
+  });
+  document.getElementById("vagueWords").addEventListener("change", function(e){
+    state.vagueWords = e.target.value.split(",").map(function(s){return s.trim();}).filter(Boolean);
+    saveState();
+  });
+  document.getElementById("thAlta").addEventListener("input", function(e){
+    state.thresholds.alta = Number(e.target.value);
+    document.getElementById("thAltaVal").textContent = state.thresholds.alta;
+    saveState();
+  });
+  document.getElementById("thBaja").addEventListener("input", function(e){
+    state.thresholds.baja = Number(e.target.value);
+    document.getElementById("thBajaVal").textContent = state.thresholds.baja;
+    saveState();
+  });
+
+  document.getElementById("clearAllBtn").addEventListener("click", function(btnEvt){
+    var btn = btnEvt.target;
+    if(btn.dataset.confirm === "1"){
+      state.ideas = [];
+      saveState(); renderBoard();
+      btn.dataset.confirm=""; btn.textContent = "Borrar todas las ideas";
+      showToast("Listo, quedó vacío");
+    } else {
+      btn.dataset.confirm = "1";
+      btn.textContent = "Tocá otra vez para confirmar";
+      setTimeout(function(){ btn.dataset.confirm=""; btn.textContent="Borrar todas las ideas"; }, 3000);
+    }
+  });
+
+  /* ---------- export ---------- */
+  var exportOverlay = document.getElementById("exportOverlay");
+  document.getElementById("exportBtn").addEventListener("click", function(){
+    var rows = [["Fecha","Hora","Categoría","Prioridad","Idea"]];
+    state.ideas.slice().sort(function(a,b){return a.ts-b.ts;}).forEach(function(i){
+      var d = new Date(i.ts);
+      rows.push([
+        d.toLocaleDateString("es-UY"),
+        d.toLocaleTimeString("es-UY",{hour:"2-digit",minute:"2-digit"}),
+        catById(i.categoryId).name,
+        bucketLabel(i.bucket),
+        i.text.replace(/\t/g," ").replace(/\n/g," ")
+      ]);
+    });
+    var tsv = rows.map(function(r){ return r.join("\t"); }).join("\n");
+    document.getElementById("exportText").value = tsv;
+    exportOverlay.hidden = false;
+  });
+  document.getElementById("closeExport").addEventListener("click", function(){ exportOverlay.hidden = true; });
+  document.getElementById("copyExportBtn").addEventListener("click", function(){
+    var ta = document.getElementById("exportText");
+    ta.focus(); ta.select();
+    var done = false;
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(ta.value);
+        done = true;
+      }
+    }catch(e){ done = false; }
+    if(!done){
+      try{ document.execCommand("copy"); done = true; }catch(e){ done = false; }
+    }
+    showToast(done ? "Copiado ✓" : "Seleccioná el texto y copialo a mano");
+  });
+
+  /* ---------- tip banner ---------- */
+  var tipBanner = document.getElementById("tipBanner");
+  if(!state.tipSeen){ tipBanner.hidden = false; }
+  document.getElementById("tipDismiss").addEventListener("click", function(){
+    tipBanner.hidden = true; state.tipSeen = true; saveState();
+  });
+
+  renderBoard();
+})();
+</script>
+</body>
+</html>
