@@ -241,6 +241,7 @@ input[type="range"]{width:100%;}
     <span>💡</span>
     <div>
       Para abrir esto con un toque, agregala a la pantalla de inicio del teléfono (menú del navegador → "Agregar a pantalla de inicio"). En Android la voz se transcribe sola; en iPhone graba el audio y lo escribís vos misma al toque.
+      <br><br><strong>Si en un mismo audio vas a contar más de una idea</strong>, tocá el botón "↳ Otra idea" justo cuando termines una y empieces la otra — si no lo tocás, quedan todas juntas en una sola.
       <div><button id="tipDismiss">Entendido</button></div>
     </div>
   </div>
@@ -306,6 +307,8 @@ input[type="range"]{width:100%;}
     <div class="sheet-head"><h3>Revisá tu idea</h3><button class="icon-btn" id="closeReview" aria-label="Cerrar">✕</button></div>
     <audio id="reviewAudio" class="audio-player" controls hidden></audio>
     <textarea id="reviewText" placeholder="Escribí o corregí lo que dijiste..."></textarea>
+    <button class="btn ghost" id="splitReviewBtn" type="button" style="margin-top:8px;">✂ Partir en dos acá</button>
+    <p class="small-note">¿Quedaron dos ideas mezcladas? Poné el cursor (tocando el texto) justo donde separan una idea de la otra, y tocá este botón.</p>
     <label for="reviewCat">Categoría</label>
     <select id="reviewCat"></select>
     <div class="field-row" style="margin-top:10px;">
@@ -435,7 +438,8 @@ input[type="range"]{width:100%;}
       "che otra cosa","che, otra cosa","che tambien","che, tambien"
     ],
     fillerWords: ["eh","ehh","este","esteee","o sea","digamos","viste","tipo","bueno","mmm","aha","ajá","aja","ponele","buee","digo yo"],
-    tipSeen: false
+    tipSeen: false,
+    tipSeen2: false
   };
 
   function normalize(s){
@@ -882,6 +886,28 @@ input[type="range"]{width:100%;}
     showToast("Guardado ✓");
   });
 
+  document.getElementById("splitReviewBtn").addEventListener("click", function(){
+    var val = reviewText.value;
+    var pos = reviewText.selectionStart;
+    if(pos == null || pos <= 0 || pos >= val.length){
+      showToast("Tocá el texto para poner el cursor donde separan las ideas.");
+      return;
+    }
+    var partA = val.slice(0, pos).trim();
+    var partB = val.slice(pos).trim();
+    if(!partA || !partB){
+      showToast("Las dos partes necesitan tener texto.");
+      return;
+    }
+    if(editingIdeaId){
+      state.ideas = state.ideas.filter(function(i){ return i.id !== editingIdeaId; });
+      saveState();
+      renderBoard();
+    }
+    closeReview();
+    openMultiReview([partA, partB]);
+  });
+
   /* ---------- multi idea review ---------- */
   var multiReviewOverlay = document.getElementById("multiReviewOverlay");
   var multiReviewList = document.getElementById("multiReviewList");
@@ -1288,9 +1314,9 @@ input[type="range"]{width:100%;}
 
   /* ---------- tip banner ---------- */
   var tipBanner = document.getElementById("tipBanner");
-  if(!state.tipSeen){ tipBanner.hidden = false; }
+  if(!state.tipSeen || !state.tipSeen2){ tipBanner.hidden = false; }
   document.getElementById("tipDismiss").addEventListener("click", function(){
-    tipBanner.hidden = true; state.tipSeen = true; saveState();
+    tipBanner.hidden = true; state.tipSeen = true; state.tipSeen2 = true; saveState();
   });
 
   renderBoard();
